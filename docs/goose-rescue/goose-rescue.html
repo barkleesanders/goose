@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<title>The Goose Rescue — June 3, 2026</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+<body>
+
+<header class="masthead spread">
+  <div class="mast-top">
+    <span>ENGINEERING EDITION</span><span>№ 001</span><span>JUNE 3, 2026</span>
+  </div>
+  <div class="mast-center">
+    <p class="kicker">A field report on dragging an AI-generated app to ship-ready</p>
+    <h1>The<br>Goose<br>Rescue</h1>
+    <p class="dek">187,000 lines written by agents in two days. Good bones, dangerous habits. Here is what carmack, debug, and ios-ship did to it.</p>
+  </div>
+  <div class="mast-foot">
+    <span>github.com/b-nnett/goose</span>
+    <span>Rust core · SwiftUI shell · JSON FFI bridge</span>
+    <span>↓ scroll</span>
+  </div>
+</header>
+
+<section class="spread s01">
+  <div class="num">01</div>
+  <div class="s01-wrap">
+    <p class="eyebrow">THE PATIENT</p>
+    <h2>A health app that had never been examined by a human.</h2>
+    <p class="lede"><span class="dropcap">G</span>oose arrived as a WHOOP-style recovery tracker: a fat Rust core doing the math, a thin SwiftUI skin on top, and a hand-rolled JSON bridge stitching the two together. Ten commits across two days. One of them literally read <em>“Merge branch 'codex-server'.”</em> Nobody had ever run it.</p>
+    <p class="body">The architecture was genuinely good — separation of concerns, exhaustive tests. But it carried the classic tells of machine-written code: an FFI boundary that turned any Rust hiccup into an instant app crash, 120 lint warnings nobody had cleaned, 8,000-line files, no Apple privacy manifest, and test fixtures that were never committed. Clever, untested, and one panic away from a black screen.</p>
+    <div class="diag-grid">
+      <div><b>187K</b><span>lines of code</span></div>
+      <div><b>10</b><span>commits / 2 days</span></div>
+      <div><b>0</b><span>humans had run it</span></div>
+      <div><b>120</b><span>lint warnings</span></div>
+    </div>
+  </div>
+  <p class="src">Source · local clone ~/code/goose-bnnett · /carmack + /debug intake</p>
+</section>
+
+<section class="spread s02">
+  <div class="num">02</div>
+  <div class="s02-head">
+    <p class="eyebrow term-accent">FIX №1 · THE ONE THAT MATTERED MOST</p>
+    <h2>Don't let the core take the whole app down.</h2>
+  </div>
+  <div class="term">
+    <div class="term-bar"><span></span><span></span><span></span> bridge.rs — FFI boundary</div>
+<pre>// BEFORE — a panic in Rust = SIGABRT = the app dies on screen
+panic = "abort"        # Cargo.toml
+
+// AFTER — panics are caught and returned as structured errors
+panic = "unwind"       # Cargo.toml
+
+#[no_mangle]
+pub extern "C" fn goose_bridge_handle_json(req: *const c_char) -> *mut c_char {
+    match catch_unwind(AssertUnwindSafe(|| handle_bridge_request_json(req))) {
+        Ok(resp) => resp,
+        Err(_)   => bridge_error("core_panic"),   // ← app survives
+    }
+}</pre>
+  </div>
+  <p class="s02-note">Both <code>extern "C"</code> entry points now sit behind <code>catch_unwind</code>. A crash in the math layer becomes a JSON error the Swift side can show — not a dead app. This single change converts the app's most fragile seam into its most defensive one.</p>
+  <p class="src light">Source · Rust/core/src/bridge.rs + Cargo.toml · panic-safety hardening</p>
+</section>
+
+<section class="spread s03">
+  <div class="num">03</div>
+  <div class="stat-wrap">
+    <p class="eyebrow">THE LINT LEDGER</p>
+    <div class="bigstat"><span class="from">120</span><span class="arrow">→</span><span class="to">0</span></div>
+    <p class="stat-cap">Clippy warnings on the library, taken to zero — real fixes, not blanket suppressions.</p>
+    <ul class="fix-list">
+      <li><code>is_some()</code> + <code>unwrap()</code> &nbsp;→&nbsp; <code>if let Some(..)</code></li>
+      <li><code>let-else</code> &nbsp;→&nbsp; the <code>?</code> operator (×4)</li>
+      <li>manual <code>loop</code> &nbsp;→&nbsp; <code>while let</code></li>
+      <li><code>.max(0.).min(180.)</code> &nbsp;→&nbsp; <code>.clamp(0., 180.)</code></li>
+      <li>collapsed duplicate <code>else-if</code> blocks</li>
+      <li>one <code>.expect()</code> <b>kept</b> — bounds invariant proven, FFI now guards it</li>
+    </ul>
+  </div>
+  <p class="src">Source · cargo clippy --lib · metrics, protocol, historical_sync, sleep_validation</p>
+</section>
+
+<section class="spread s04">
+  <div class="num">04</div>
+  <div class="poster-wrap">
+    <p class="eyebrow poster-eye">APP STORE COMPLIANCE</p>
+    <h2 class="poster-h">Four reasons<br>Apple says no.<br><span>Now zero.</span></h2>
+    <ul class="crit">
+      <li><span class="x">✕→✓</span> Missing privacy manifest <em>→ PrivacyInfo.xcprivacy (UserDefaults CA92.1, FileTimestamp C617.1)</em></li>
+      <li><span class="x">✕→✓</span> No display name <em>→ CFBundleDisplayName “Goose”</em></li>
+      <li><span class="x">✕→✓</span> False “Amplitude SDK” match <em>→ renamed a waveform var; verified no tracking SDK exists</em></li>
+      <li><span class="x">✕→✓</span> Manifest not in target <em>→ wired in via pbxproj, confirmed bundled in the .app</em></li>
+    </ul>
+    <div class="greenlit">GREENLIT — 0 CRITICAL</div>
+  </div>
+  <p class="src light">Source · greenlight preflight . · no fabricated declarations</p>
+</section>
+
+<section class="spread s05">
+  <div class="num">05</div>
+  <div class="runs-wrap">
+    <p class="eyebrow">THE MOMENT OF TRUTH</p>
+    <h2 class="runs-h">It runs.</h2>
+    <p class="runs-dek">Downloaded the 8.52 GB iOS 26.5 simulator runtime, rebuilt, and watched it boot.</p>
+    <div class="phone">
+      <div class="phone-screen">
+        <div class="ps-status">9:41</div>
+        <div class="ps-body">
+          <div class="ps-logo">🪿</div>
+          <div class="ps-title">Goose</div>
+          <div class="ps-sub">Import Weight</div>
+          <div class="ps-btn">Get Started</div>
+        </div>
+      </div>
+    </div>
+    <div class="runs-meta">
+      <div><b>BUILD SUCCEEDED</b><span>iOS 26.5 · runtime 23F77</span></div>
+      <div><b>PID 50947</b><span>launched, onboarding live</span></div>
+      <div><b>clean</b><span>no crash, no FFI error in logs</span></div>
+    </div>
+  </div>
+  <p class="src light">Source · xcodebuild + xcrun simctl · launched + screenshotted in the simulator</p>
+</section>
+
+<section class="spread s06">
+  <div class="stamp">STILL OPEN</div>
+  <div class="num alert-num">06</div>
+  <div class="alert-wrap">
+    <p class="eyebrow alert-eye">WHAT WE DID NOT PRETEND WAS DONE</p>
+    <h2 class="alert-h">Honest about the gap.</h2>
+    <p class="alert-body">Shipping-ready is not the same as finished. The reference frame here is the full spec, not the distance travelled — so the open items stay on the board, named:</p>
+    <ul class="open-list">
+      <li><b>16 Swift concurrency / data-race warnings</b> — 15 clustered in GooseAppModel+NotificationPipeline.swift, 1 in HealthDataStore.swift. The real remaining bug surface.</li>
+      <li><b>45 test-code clippy warnings</b> + uncommitted test fixtures — the full suite can't run until those are generated.</li>
+      <li><b>Nothing pushed.</b> No branch, no PR — by rule, not by accident. Awaiting approval.</li>
+    </ul>
+    <p class="alert-foot">A green build that crashes on launch is not done. This one launched clean — but the races are real and unfixed, and we said so.</p>
+  </div>
+  <p class="src light">Source · swiftc build warnings + cargo clippy --all-targets · the “compared-to-what” rule</p>
+</section>
+
+<footer class="spread colophon">
+  <p class="colo-mark">🪿</p>
+  <h2>Diagnosed, hardened, run.</h2>
+  <p class="colo-body">An AI wrote Goose in a weekend. It took a human-directed pass — panic-safety at the seam, a clean lint ledger, a real privacy manifest, and an actual launch on a real simulator runtime — to make it something you could put in front of Apple. The wins are real. So is the list of what's left.</p>
+  <p class="colo-meta">The Goose Rescue · Engineering Edition № 001 · June 3, 2026 · rendered by /magazine</p>
+</footer>
+
+</body>
+
+<script>
+  // PDF/print mode: open with ?pdf to hint print; smooth anchor scroll otherwise.
+  (function () {
+    try {
+      var pdf = new URLSearchParams(location.search).has('pdf');
+      if (pdf) document.documentElement.classList.add('pdf');
+    } catch (e) {}
+  })();
+</script>
+
+<style>
+  :root{
+    --ink:#14110e; --paper:#f6f1e7; --rule:rgba(0,0,0,.18);
+    --goose:#d8e84a; --goose-deep:#9bb400;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:Inter,system-ui,sans-serif;background:var(--ink);color:var(--ink);-webkit-font-smoothing:antialiased}
+  .spread{position:relative;min-height:100vh;padding:7vh 7vw;display:flex;flex-direction:column;justify-content:center;overflow:hidden}
+  h1,h2{font-family:Fraunces,serif;font-weight:800;line-height:.95;letter-spacing:-.02em}
+  .eyebrow{font-size:15px;font-weight:700;letter-spacing:.28em;text-transform:uppercase;margin-bottom:24px;opacity:.7}
+  .num{position:absolute;font-family:Fraunces,serif;font-weight:300;font-size:clamp(120px,22vw,300px);line-height:1;opacity:.10;top:2vh;right:5vw;pointer-events:none}
+  .src{font-size:18px;margin-top:auto;padding-top:40px;opacity:.6;font-weight:500}
+  .src.light{color:rgba(255,255,255,.6)}
+  code{font-family:'JetBrains Mono',monospace;font-size:.92em}
+
+  /* MASTHEAD */
+  .masthead{background:var(--ink);color:var(--paper);justify-content:space-between}
+  .mast-top{display:flex;justify-content:space-between;font-size:15px;letter-spacing:.22em;font-weight:600;opacity:.7;border-bottom:1px solid rgba(255,255,255,.2);padding-bottom:18px}
+  .mast-center{padding:4vh 0}
+  .kicker{font-family:Fraunces,serif;font-style:italic;font-size:clamp(20px,2.6vw,30px);opacity:.8;margin-bottom:18px}
+  .masthead h1{font-size:clamp(80px,20vw,240px);color:var(--goose);text-shadow:0 0 60px rgba(216,232,74,.25)}
+  .dek{font-size:clamp(20px,2.3vw,28px);max-width:30ch;margin-top:30px;line-height:1.4;opacity:.85}
+  .mast-foot{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;font-size:16px;font-weight:500;opacity:.7;border-top:1px solid rgba(255,255,255,.2);padding-top:18px}
+
+  /* 01 — academic / paper */
+  .s01{background:var(--paper)}
+  .s01-wrap{max-width:46ch}
+  .s01 h2{font-size:clamp(34px,5vw,64px);margin-bottom:30px}
+  .lede{font-size:clamp(20px,2.1vw,26px);line-height:1.5;margin-bottom:24px}
+  .dropcap{float:left;font-family:Fraunces,serif;font-weight:800;font-size:84px;line-height:.7;padding:8px 12px 0 0;color:var(--goose-deep)}
+  .body{font-size:22px;line-height:1.6;opacity:.85}
+  .diag-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:40px;border-top:2px solid var(--ink);padding-top:24px}
+  .diag-grid b{font-family:Fraunces,serif;font-size:clamp(34px,4vw,52px);display:block}
+  .diag-grid span{font-size:15px;opacity:.6;font-weight:600}
+
+  /* 02 — dark terminal */
+  .s02{background:#0c1012;color:#e8f0e6}
+  .term-accent{color:var(--goose)}
+  .s02-head{max-width:30ch}
+  .s02 h2{font-size:clamp(32px,4.6vw,58px);margin-bottom:36px}
+  .term{background:#05080a;border:1px solid rgba(216,232,74,.25);border-radius:12px;overflow:hidden;max-width:760px;box-shadow:0 30px 80px rgba(0,0,0,.5)}
+  .term-bar{display:flex;align-items:center;gap:8px;padding:12px 16px;background:rgba(255,255,255,.05);font-family:'JetBrains Mono',monospace;font-size:14px;opacity:.7}
+  .term-bar span{width:11px;height:11px;border-radius:50%;background:#3a4040}
+  .term-bar span:first-child{background:#ff5f56}.term-bar span:nth-child(2){background:#ffbd2e}.term-bar span:nth-child(3){background:#27c93f;margin-right:10px}
+  .term pre{font-family:'JetBrains Mono',monospace;font-size:clamp(12px,1.35vw,16px);line-height:1.7;padding:24px;color:#cfe3c8;white-space:pre;overflow-x:auto}
+  .s02-note{font-size:22px;line-height:1.5;max-width:60ch;margin-top:30px;opacity:.85}
+  .s02-note code{color:var(--goose)}
+
+  /* 03 — big stat */
+  .s03{background:var(--goose);color:var(--ink)}
+  .stat-wrap{max-width:48ch}
+  .bigstat{display:flex;align-items:center;gap:clamp(12px,3vw,40px);font-family:Fraunces,serif;font-weight:800;line-height:1}
+  .bigstat .from{font-size:clamp(90px,16vw,200px);opacity:.45;text-decoration:line-through;text-decoration-thickness:6px}
+  .bigstat .arrow{font-size:clamp(50px,8vw,110px)}
+  .bigstat .to{font-size:clamp(120px,22vw,280px)}
+  .stat-cap{font-size:clamp(22px,2.4vw,30px);font-weight:600;margin:20px 0 30px;max-width:34ch}
+  .fix-list{list-style:none;display:grid;gap:12px;font-size:19px;font-weight:500}
+  .fix-list li{border-bottom:1px solid rgba(0,0,0,.2);padding-bottom:10px}
+  .fix-list code{background:rgba(0,0,0,.1);padding:2px 6px;border-radius:4px}
+
+  /* 04 — poster */
+  .s04{background:#102a1a;color:#eafff0}
+  .poster-eye{color:#7ee0a0}
+  .poster-h{font-size:clamp(44px,8vw,104px);margin-bottom:40px}
+  .poster-h span{color:#7ee0a0}
+  .crit{list-style:none;display:grid;gap:18px;max-width:62ch}
+  .crit li{font-size:clamp(18px,2vw,23px);line-height:1.4;border-left:3px solid #7ee0a0;padding-left:18px}
+  .crit em{display:block;opacity:.7;font-style:normal;font-size:.88em;margin-top:4px}
+  .crit .x{font-family:'JetBrains Mono',monospace;font-weight:700;color:#7ee0a0;margin-right:8px}
+  .greenlit{display:inline-block;margin-top:36px;background:#7ee0a0;color:#0a1f12;font-weight:800;font-size:clamp(20px,3vw,34px);letter-spacing:.1em;padding:14px 28px;border-radius:8px;font-family:Fraunces,serif}
+
+  /* 05 — runs / phone */
+  .s05{background:#f6f1e7;color:var(--ink)}
+  .runs-wrap{display:grid;grid-template-columns:1.1fr .9fr;gap:5vw;align-items:center}
+  .runs-h{font-size:clamp(60px,12vw,150px);color:var(--goose-deep)}
+  .runs-dek{font-size:clamp(20px,2.2vw,26px);line-height:1.45;max-width:30ch;margin-top:16px}
+  .runs-meta{display:grid;gap:14px;margin-top:34px}
+  .runs-meta b{font-family:Fraunces,serif;font-size:24px;display:block}
+  .runs-meta span{font-size:16px;opacity:.6;font-weight:600}
+  .phone{justify-self:center;width:min(280px,70vw);aspect-ratio:9/19.5;background:#111;border-radius:42px;padding:12px;box-shadow:0 40px 90px rgba(0,0,0,.35)}
+  .phone-screen{width:100%;height:100%;border-radius:32px;background:linear-gradient(170deg,#dff0d6,#a9d89a 60%,#8fc77f);display:flex;flex-direction:column;overflow:hidden}
+  .ps-status{font-size:15px;font-weight:700;padding:14px 22px;color:#1c3a1c}
+  .ps-body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:20px}
+  .ps-logo{font-size:64px}
+  .ps-title{font-family:Fraunces,serif;font-weight:800;font-size:38px;color:#173817}
+  .ps-sub{font-size:18px;color:#2c4a2c;opacity:.85;font-weight:600}
+  .ps-btn{margin-top:18px;background:#173817;color:#dff0d6;font-weight:700;padding:12px 30px;border-radius:30px;font-size:17px}
+
+  /* 06 — rose alert */
+  .s06{background:#2a0e14;color:#ffe9ec}
+  .alert-num{color:#ff6b81;opacity:.16}
+  .stamp{position:absolute;top:8vh;right:6vw;transform:rotate(9deg);border:3px solid #ff6b81;color:#ff6b81;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.15em;padding:8px 16px;border-radius:6px;font-size:clamp(16px,2vw,24px)}
+  .alert-eye{color:#ff8d9e}
+  .alert-h{font-size:clamp(40px,7vw,90px);margin-bottom:28px}
+  .alert-body{font-size:clamp(20px,2.1vw,25px);line-height:1.5;max-width:54ch;margin-bottom:26px;opacity:.9}
+  .open-list{list-style:none;display:grid;gap:20px;max-width:62ch}
+  .open-list li{font-size:19px;line-height:1.5;border-left:3px solid #ff6b81;padding-left:18px;opacity:.92}
+  .open-list b{color:#ffb3bf}
+  .alert-foot{font-family:Fraunces,serif;font-style:italic;font-size:clamp(20px,2.3vw,28px);margin-top:34px;max-width:46ch;color:#ffb3bf}
+
+  /* colophon */
+  .colophon{background:var(--ink);color:var(--paper);text-align:center;align-items:center}
+  .colo-mark{font-size:80px;margin-bottom:20px}
+  .colophon h2{font-size:clamp(40px,7vw,84px);color:var(--goose);margin-bottom:24px}
+  .colo-body{font-size:clamp(20px,2.2vw,26px);line-height:1.55;max-width:54ch;opacity:.85;margin-bottom:36px}
+  .colo-meta{font-size:16px;letter-spacing:.12em;opacity:.5;text-transform:uppercase;font-weight:600}
+
+  @media (max-width:760px){
+    .diag-grid{grid-template-columns:repeat(2,1fr)}
+    .runs-wrap{grid-template-columns:1fr}
+    .bigstat{flex-wrap:wrap}
+  }
+
+  /* PRINT / PDF — one spread per page, no blanks */
+  @media print{
+    @page{size:landscape;margin:0}
+    html,body{background:#fff}
+    .spread{min-height:auto;height:100vh;page-break-after:always;break-after:page;box-shadow:none}
+    .num{position:absolute}
+    *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  }
+  .pdf .spread{min-height:auto;height:100vh;page-break-after:always}
+</style>
+</html>

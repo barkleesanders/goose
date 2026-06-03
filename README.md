@@ -1,5 +1,7 @@
 # Goose - Local Companion for WHOOP 5.0
 
+> 🪿 **The Goose Rescue** — a write-up of the FFI panic-safety hardening, clippy 120→0, App Store compliance, and first simulator launch: [docs/goose-rescue](docs/goose-rescue/README.md) ([PDF](docs/goose-rescue/goose-rescue.pdf)).
+
 **Alpha proof of concept. This build is for developers to evaluate whether a project of this scope is viable. It is not ready to use as an app for tracking personal health data yet.**
 
 If you don't know what Xcode is, or how to build the Rust core, this build is not for you. Come back on 13 June 2026 for the first public beta on TestFlight.
