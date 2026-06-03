@@ -97,13 +97,12 @@ fn algo_benchmark_rejects_private_api_label_source_in_report() {
     let report: serde_json::Value =
         serde_json::from_str(&fs::read_to_string(output_path).unwrap()).unwrap();
     assert_eq!(report["pass"], false);
-    assert_eq!(
+    assert!(
         report["errors"]
             .as_array()
             .unwrap()
             .iter()
-            .any(|error| error == "unsupported_label_source:private_api_replay"),
-        true
+            .any(|error| error == "unsupported_label_source:private_api_replay")
     );
     assert_eq!(
         report["label_comparison"]["official_labels_are_labels"],

@@ -50,7 +50,7 @@ struct RecoveryV2ScenicBackground: View {
         let signalPath = recoverySignalPath(
           size: size,
           y: size.height * 0.34,
-          amplitude: size.height * 0.035
+          waveHeight: size.height * 0.035
         )
         context.stroke(
           signalPath,
@@ -108,25 +108,25 @@ struct RecoveryV2ScenicBackground: View {
     return path
   }
 
-  private func recoverySignalPath(size: CGSize, y: CGFloat, amplitude: CGFloat) -> Path {
+  private func recoverySignalPath(size: CGSize, y: CGFloat, waveHeight: CGFloat) -> Path {
     let width = max(size.width, 1)
 
     var path = Path()
     path.move(to: CGPoint(x: -width * 0.05, y: y))
     path.addCurve(
-      to: CGPoint(x: width * 0.32, y: y - amplitude),
-      control1: CGPoint(x: width * 0.06, y: y + amplitude * 0.85),
-      control2: CGPoint(x: width * 0.18, y: y - amplitude * 1.25)
+      to: CGPoint(x: width * 0.32, y: y - waveHeight),
+      control1: CGPoint(x: width * 0.06, y: y + waveHeight * 0.85),
+      control2: CGPoint(x: width * 0.18, y: y - waveHeight * 1.25)
     )
     path.addCurve(
-      to: CGPoint(x: width * 0.67, y: y + amplitude * 0.42),
-      control1: CGPoint(x: width * 0.46, y: y + amplitude * 0.25),
-      control2: CGPoint(x: width * 0.54, y: y + amplitude * 1.2)
+      to: CGPoint(x: width * 0.67, y: y + waveHeight * 0.42),
+      control1: CGPoint(x: width * 0.46, y: y + waveHeight * 0.25),
+      control2: CGPoint(x: width * 0.54, y: y + waveHeight * 1.2)
     )
     path.addCurve(
-      to: CGPoint(x: width * 1.05, y: y - amplitude * 0.24),
-      control1: CGPoint(x: width * 0.80, y: y - amplitude * 0.62),
-      control2: CGPoint(x: width * 0.92, y: y - amplitude * 0.84)
+      to: CGPoint(x: width * 1.05, y: y - waveHeight * 0.24),
+      control1: CGPoint(x: width * 0.80, y: y - waveHeight * 0.62),
+      control2: CGPoint(x: width * 0.92, y: y - waveHeight * 0.84)
     )
     return path
   }

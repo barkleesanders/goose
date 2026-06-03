@@ -1589,16 +1589,14 @@ pub fn run_vital_event_feature_report(
             candidate_frame_count += 1;
             features.push(vital_event_feature_from_plan(row, plan, &trusted_frames)?);
         }
-        if let Some(plan) = skin_temperature_plan_from_payload(&parsed_payload) {
-            if let Some(feature) = skin_temperature_feature_from_plan(row, plan, &trusted_frames)? {
+        if let Some(plan) = skin_temperature_plan_from_payload(&parsed_payload)
+            && let Some(feature) = skin_temperature_feature_from_plan(row, plan, &trusted_frames)? {
                 skin_temperature_inputs.push(feature);
             }
-        }
-        if let Some(plan) = respiratory_rate_plan_from_payload(&parsed_payload) {
-            if let Some(feature) = respiratory_rate_feature_from_plan(row, plan, &trusted_frames)? {
+        if let Some(plan) = respiratory_rate_plan_from_payload(&parsed_payload)
+            && let Some(feature) = respiratory_rate_feature_from_plan(row, plan, &trusted_frames)? {
                 respiratory_rate_inputs.push(feature);
             }
-        }
     }
 
     let trusted_feature_count = features
@@ -2871,13 +2869,12 @@ fn validate_hrv_validation_options(options: &HrvCaptureValidationOptions) -> Goo
     if !options.tolerance_ms.is_finite() || options.tolerance_ms < 0.0 {
         return Err(GooseError::message("tolerance_ms must be nonnegative"));
     }
-    if let Some(value) = options.official_whoop_hrv_rmssd_ms {
-        if !value.is_finite() || value < 0.0 {
+    if let Some(value) = options.official_whoop_hrv_rmssd_ms
+        && (!value.is_finite() || value < 0.0) {
             return Err(GooseError::message(
                 "official_whoop_hrv_rmssd_ms must be nonnegative",
             ));
         }
-    }
     Ok(())
 }
 
@@ -2887,13 +2884,12 @@ fn validate_respiratory_rate_validation_options(
     if !options.tolerance_rpm.is_finite() || options.tolerance_rpm < 0.0 {
         return Err(GooseError::message("tolerance_rpm must be nonnegative"));
     }
-    if let Some(value) = options.official_whoop_respiratory_rate_rpm {
-        if !value.is_finite() || value <= 0.0 {
+    if let Some(value) = options.official_whoop_respiratory_rate_rpm
+        && (!value.is_finite() || value <= 0.0) {
             return Err(GooseError::message(
                 "official_whoop_respiratory_rate_rpm must be positive",
             ));
         }
-    }
     Ok(())
 }
 
@@ -2903,13 +2899,12 @@ fn validate_oxygen_saturation_validation_options(
     if !options.tolerance_percent.is_finite() || options.tolerance_percent < 0.0 {
         return Err(GooseError::message("tolerance_percent must be nonnegative"));
     }
-    if let Some(value) = options.official_whoop_oxygen_saturation_percent {
-        if !value.is_finite() || !(0.0..=100.0).contains(&value) {
+    if let Some(value) = options.official_whoop_oxygen_saturation_percent
+        && (!value.is_finite() || !(0.0..=100.0).contains(&value)) {
             return Err(GooseError::message(
                 "official_whoop_oxygen_saturation_percent must be between 0 and 100",
             ));
         }
-    }
     Ok(())
 }
 
@@ -2919,13 +2914,12 @@ fn validate_temperature_validation_options(
     if !options.tolerance_c.is_finite() || options.tolerance_c < 0.0 {
         return Err(GooseError::message("tolerance_c must be nonnegative"));
     }
-    if let Some(value) = options.official_whoop_skin_temperature_delta_c {
-        if !value.is_finite() {
+    if let Some(value) = options.official_whoop_skin_temperature_delta_c
+        && !value.is_finite() {
             return Err(GooseError::message(
                 "official_whoop_skin_temperature_delta_c must be finite",
             ));
         }
-    }
     Ok(())
 }
 
@@ -5244,15 +5238,11 @@ fn merge_compatible_sleep_stage_segments(
 fn smooth_short_sleep_stage_transitions(
     mut stage_segments: Vec<SleepStageSegmentFeature>,
 ) -> Vec<SleepStageSegmentFeature> {
-    loop {
-        let Some(index) = stage_segments
-            .windows(3)
-            .position(short_non_awake_stage_island)
-            .map(|index| index + 1)
-        else {
-            break;
-        };
-
+    while let Some(index) = stage_segments
+        .windows(3)
+        .position(short_non_awake_stage_island)
+        .map(|index| index + 1)
+    {
         let combined = combine_sleep_stage_segments(
             stage_segments[index - 1].stage.clone(),
             &stage_segments[index - 1..=index + 1],
@@ -6072,7 +6062,7 @@ fn low_quartile_mean_hr(features: &[&HeartRateFeature]) -> f64 {
 fn median(mut values: Vec<f64>) -> f64 {
     values.sort_by(f64::total_cmp);
     let midpoint = values.len() / 2;
-    if values.len() % 2 == 0 {
+    if values.len().is_multiple_of(2) {
         (values[midpoint - 1] + values[midpoint]) / 2.0
     } else {
         values[midpoint]
@@ -6369,13 +6359,11 @@ fn parse_rfc3339_utc_unix_ms(value: &str) -> Option<i64> {
     }
 
     let days = days_from_civil(year, month, day);
-    Some(
-        days.checked_mul(86_400_000)?
+    days.checked_mul(86_400_000)?
             .checked_add(i64::from(hour) * 3_600_000)?
             .checked_add(i64::from(minute) * 60_000)?
             .checked_add(i64::from(second) * 1_000)?
-            .checked_add(i64::from(millis))?,
-    )
+            .checked_add(i64::from(millis))
 }
 
 fn parse_millis_fraction(value: &str) -> Option<u32> {

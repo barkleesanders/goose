@@ -887,7 +887,7 @@ fn activity_unavailable_status_writes_steps_activity_metric_with_provenance() {
     assert_eq!(report.unavailable_metric_count, 1);
     assert_eq!(report.written_metric_count, 1);
     assert_eq!(report.metric_provenance_written_count, 1);
-    assert_eq!(report.step_counter_daily_rollup.pass, false);
+    assert!(!report.step_counter_daily_rollup.pass);
     let status = &report.statuses[0];
     assert_eq!(status.metric_id, "steps");
     assert_eq!(status.source_kind, "unavailable");

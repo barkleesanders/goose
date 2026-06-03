@@ -1,3 +1,4 @@
+#![allow(clippy::too_many_arguments)] // test builders
 use std::fs;
 
 use goose_core::activity_candidates::{

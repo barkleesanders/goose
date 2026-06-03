@@ -3,7 +3,14 @@ import Foundation
 import OSLog
 
 
-final class GooseBLEClient: NSObject, ObservableObject {
+// Thread-safe to share across the BLE / notification background queues: the
+// CoreBluetooth delegate work runs on `coreBluetoothQueue`, diagnostic logging
+// on `diagnosticLogQueue`, and `@Published` UI state is mutated on the main
+// queue. The notification pipeline only calls `record(...)` (which serializes
+// through `messageStore` and the diagnostic queue) from off-main. The class
+// has been used this way at runtime; synchronization is manual, hence
+// @unchecked.
+final class GooseBLEClient: NSObject, ObservableObject, @unchecked Sendable {
   @Published var bluetoothState = "not requested"
   @Published var connectionState = "disconnected"
   @Published var isScanning = false

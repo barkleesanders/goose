@@ -8,6 +8,7 @@ use sha2::{Digest, Sha256};
 use crate::{
     GooseError, GooseResult,
     protocol::{DeviceType, ParsedFrame},
+    validation_labels::OFFICIAL_WHOOP_LABEL_POLICY,
 };
 
 pub const CURRENT_SCHEMA_VERSION: i64 = 14;
@@ -6436,6 +6437,15 @@ fn value_contains_official_whoop_label_marker(value: &Value) -> bool {
             {
                 return true;
             }
+            // The `label_policy` field carries the constant policy declaration that
+            // states official WHOOP values are validation labels, not inputs. That
+            // declaration string legitimately starts with `official_whoop_`, so skip
+            // it here; any other value under `label_policy` is still scanned.
+            if normalized_marker(key).as_str() == "label_policy"
+                && child.as_str() == Some(OFFICIAL_WHOOP_LABEL_POLICY)
+            {
+                return false;
+            }
             value_contains_official_whoop_label_marker(child)
         }),
         Value::Array(values) => values
@@ -6599,22 +6609,20 @@ fn validate_optional_non_negative_i64(name: &str, value: Option<i64>) -> GooseRe
 }
 
 fn validate_optional_finite_f64(name: &str, value: Option<f64>) -> GooseResult<()> {
-    if let Some(value) = value {
-        if !value.is_finite() {
+    if let Some(value) = value
+        && !value.is_finite() {
             return Err(GooseError::message(format!("{name} must be finite")));
         }
-    }
     Ok(())
 }
 
 fn validate_optional_non_negative_f64(name: &str, value: Option<f64>) -> GooseResult<()> {
-    if let Some(value) = value {
-        if !value.is_finite() || value < 0.0 {
+    if let Some(value) = value
+        && (!value.is_finite() || value < 0.0) {
             return Err(GooseError::message(format!(
                 "{name} must be finite and non-negative",
             )));
         }
-    }
     Ok(())
 }
 

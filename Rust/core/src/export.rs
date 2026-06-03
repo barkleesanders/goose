@@ -33,6 +33,7 @@ use crate::{
         RawEvidenceRow,
     },
     timeline::{PacketTimelineRow, packet_timeline_from_decoded_frames},
+    validation_labels::OFFICIAL_WHOOP_LABEL_POLICY,
 };
 
 const ALLOWED_ACTIVITY_SYNC_STATUSES: &[&str] = &[
@@ -1593,13 +1594,12 @@ fn validate_manifest_shape(manifest: &ExportManifest, issues: &mut Vec<String>) 
                 .to_string(),
         );
     }
-    if family_is_listed(manifest, RAW_EXPORT_SQLITE_FAMILY) {
-        if !manifest.filters.include_raw_bytes {
+    if family_is_listed(manifest, RAW_EXPORT_SQLITE_FAMILY)
+        && !manifest.filters.include_raw_bytes {
             issues.push(
                 "sqlite data family cannot be exported when include_raw_bytes is false".to_string(),
             );
         }
-    }
 }
 
 struct RawExportReadinessInput {
@@ -2318,8 +2318,8 @@ fn export_sensor_samples(
                 marker_offset,
                 marker_value,
             } => {
-                if hr_present.unwrap_or(false) {
-                    if let (Some(offset), Some(value)) = (
+                if hr_present.unwrap_or(false)
+                    && let (Some(offset), Some(value)) = (
                         marker_offset.or(hr_marker_offset),
                         marker_value.or(hr_present_marker),
                     ) {
@@ -2334,7 +2334,6 @@ fn export_sensor_samples(
                             vec!["raw_history_marker".to_string()],
                         ));
                     }
-                }
             }
             DataPacketBodySummary::R17OpticalOrLabradorFiltered {
                 samples, warnings, ..
@@ -2418,8 +2417,8 @@ fn push_i16_sensor_series(
     series: &I16SeriesSummary,
     summary_warnings: &[String],
 ) -> GooseResult<()> {
-    if series.parsed_count < series.expected_count {
-        if !summary_warnings
+    if series.parsed_count < series.expected_count
+        && !summary_warnings
             .iter()
             .any(|warning| warning == &format!("{}_truncated", series.name))
         {
@@ -2428,7 +2427,6 @@ fn push_i16_sensor_series(
                 context.row.frame_id, series.name
             )));
         }
-    }
     for sample_index in 0..series.parsed_count {
         let payload_offset = series.offset + sample_index * 2;
         let value = read_i16_le_at(payload, payload_offset).ok_or_else(|| {
@@ -4179,13 +4177,11 @@ fn parse_rfc3339_utc_unix_ms(value: &str) -> Option<i64> {
     }
 
     let days = days_from_civil(year, month, day);
-    Some(
-        days.checked_mul(86_400_000)?
+    days.checked_mul(86_400_000)?
             .checked_add(i64::from(hour) * 3_600_000)?
             .checked_add(i64::from(minute) * 60_000)?
             .checked_add(i64::from(second) * 1_000)?
-            .checked_add(i64::from(millis))?,
-    )
+            .checked_add(i64::from(millis))
 }
 
 fn parse_millis_fraction(value: &str) -> Option<u32> {
@@ -4800,14 +4796,13 @@ fn validate_decoded_frame_reimport(
                 row.frame_id
             ));
         }
-        if let Some(raw_evidence_ids) = raw_evidence_ids {
-            if !raw_evidence_ids.contains(&row.evidence_id) {
+        if let Some(raw_evidence_ids) = raw_evidence_ids
+            && !raw_evidence_ids.contains(&row.evidence_id) {
                 issues.push(format!(
                     "decoded frame evidence_id {} is missing from typed raw evidence re-import",
                     row.evidence_id
                 ));
             }
-        }
         if include_raw_bytes {
             validate_hex_field(
                 &row.payload_hex,
@@ -4868,22 +4863,20 @@ fn validate_packet_timeline_reimport(
                 row.timeline_id
             ));
         }
-        if let Some(raw_evidence_ids) = raw_evidence_ids {
-            if !raw_evidence_ids.contains(&row.evidence_id) {
+        if let Some(raw_evidence_ids) = raw_evidence_ids
+            && !raw_evidence_ids.contains(&row.evidence_id) {
                 issues.push(format!(
                     "timeline evidence_id {} is missing from typed raw evidence re-import",
                     row.evidence_id
                 ));
             }
-        }
-        if let Some(decoded_frame_ids) = decoded_frame_ids {
-            if !decoded_frame_ids.contains(&row.frame_id) {
+        if let Some(decoded_frame_ids) = decoded_frame_ids
+            && !decoded_frame_ids.contains(&row.frame_id) {
                 issues.push(format!(
                     "timeline frame_id {} is missing from typed decoded frame re-import",
                     row.frame_id
                 ));
             }
-        }
         if let Some(body_hex) = &row.body_hex {
             if !include_raw_bytes && !body_hex.is_empty() {
                 issues.push(format!(
@@ -4934,22 +4927,20 @@ fn validate_sensor_sample_reimport(
                 row.sample_id
             ));
         }
-        if let Some(raw_evidence_ids) = raw_evidence_ids {
-            if !raw_evidence_ids.contains(&row.evidence_id) {
+        if let Some(raw_evidence_ids) = raw_evidence_ids
+            && !raw_evidence_ids.contains(&row.evidence_id) {
                 issues.push(format!(
                     "sensor sample evidence_id {} is missing from typed raw evidence re-import",
                     row.evidence_id
                 ));
             }
-        }
-        if let Some(decoded_frame_ids) = decoded_frame_ids {
-            if !decoded_frame_ids.contains(&row.frame_id) {
+        if let Some(decoded_frame_ids) = decoded_frame_ids
+            && !decoded_frame_ids.contains(&row.frame_id) {
                 issues.push(format!(
                     "sensor sample frame_id {} is missing from typed decoded frame re-import",
                     row.frame_id
                 ));
             }
-        }
         match (row.raw_i16, row.raw_u8) {
             (Some(raw_i16), None) if row.sample_value == i64::from(raw_i16) => {}
             (None, Some(raw_u8)) if row.sample_value == i64::from(raw_u8) => {}
@@ -5294,10 +5285,9 @@ fn validate_algorithm_run_provided_vitals(
         ));
         return;
     };
-    if !provided_vitals
+    if provided_vitals
         .get("source")
-        .and_then(Value::as_str)
-        .is_some_and(|source| !source.trim().is_empty())
+        .and_then(Value::as_str).is_none_or(|source| source.trim().is_empty())
     {
         issues.push(format!(
             "algorithm run {} provided_vitals.source is required",
@@ -5374,13 +5364,12 @@ fn validate_metric_output_run_reference(
     algorithm_run_ids: Option<&BTreeSet<String>>,
     issues: &mut Vec<String>,
 ) {
-    if let Some(algorithm_run_ids) = algorithm_run_ids {
-        if !algorithm_run_ids.contains(run_id) {
+    if let Some(algorithm_run_ids) = algorithm_run_ids
+        && !algorithm_run_ids.contains(run_id) {
             issues.push(format!(
                 "{row_kind} run_id {run_id} is missing from algorithm run export"
             ));
         }
-    }
 }
 
 fn validate_optional_finite(value: Option<f64>, field: &str, issues: &mut Vec<String>) {
@@ -6480,30 +6469,27 @@ fn validate_calibration_run_times(row: &CalibrationRunRecord, issues: &mut Vec<S
         parse_calibration_run_time(row, "holdout_start", &row.times.holdout_start, issues);
     let holdout_end =
         parse_calibration_run_time(row, "holdout_end", &row.times.holdout_end, issues);
-    if let (Some(start), Some(end)) = (train_start, train_end) {
-        if start >= end {
+    if let (Some(start), Some(end)) = (train_start, train_end)
+        && start >= end {
             issues.push(format!(
                 "calibration run {} train_start must be before train_end",
                 row.calibration_run_id
             ));
         }
-    }
-    if let (Some(start), Some(end)) = (holdout_start, holdout_end) {
-        if start >= end {
+    if let (Some(start), Some(end)) = (holdout_start, holdout_end)
+        && start >= end {
             issues.push(format!(
                 "calibration run {} holdout_start must be before holdout_end",
                 row.calibration_run_id
             ));
         }
-    }
-    if let (Some(train_end), Some(holdout_start)) = (train_end, holdout_start) {
-        if train_end > holdout_start {
+    if let (Some(train_end), Some(holdout_start)) = (train_end, holdout_start)
+        && train_end > holdout_start {
             issues.push(format!(
                 "calibration run {} train_end must not be after holdout_start",
                 row.calibration_run_id
             ));
         }
-    }
 }
 
 fn parse_calibration_run_time(
@@ -6638,10 +6624,9 @@ fn validate_calibration_run_params_json(
             row.calibration_run_id
         )),
     }
-    if !params
+    if params
         .get("split_policy")
-        .and_then(Value::as_str)
-        .is_some_and(|policy| !policy.trim().is_empty())
+        .and_then(Value::as_str).is_none_or(|policy| policy.trim().is_empty())
     {
         issues.push(format!(
             "calibration run {} params_json.split_policy is required",
@@ -6787,14 +6772,13 @@ fn validate_debug_command_reimport(
                 row.command_id
             ));
         }
-        if let Some(session_ids) = session_ids {
-            if !session_ids.contains(&row.session_id) {
+        if let Some(session_ids) = session_ids
+            && !session_ids.contains(&row.session_id) {
                 issues.push(format!(
                     "debug command {} session_id {} is missing from debug session export",
                     row.command_id, row.session_id
                 ));
             }
-        }
         validate_json_object_text(
             &row.args_json,
             &format!("debug command {} args_json", row.command_id),
@@ -6857,22 +6841,20 @@ fn validate_debug_event_reimport(
                 row.session_id, row.sequence
             ));
         }
-        if let Some(session_ids) = session_ids {
-            if !session_ids.contains(&row.session_id) {
+        if let Some(session_ids) = session_ids
+            && !session_ids.contains(&row.session_id) {
                 issues.push(format!(
                     "debug event {}:{} session_id is missing from debug session export",
                     row.session_id, row.sequence
                 ));
             }
-        }
-        if let (Some(command_id), Some(command_ids)) = (row.command_id.as_deref(), command_ids) {
-            if !command_ids.contains(command_id) {
+        if let (Some(command_id), Some(command_ids)) = (row.command_id.as_deref(), command_ids)
+            && !command_ids.contains(command_id) {
                 issues.push(format!(
                     "debug event {}:{} command_id {} is missing from debug command export",
                     row.session_id, row.sequence, command_id
                 ));
             }
-        }
         if let Some((previous_sequence, previous_time)) =
             latest_by_session.get(row.session_id.as_str()).copied()
         {
@@ -6969,6 +6951,15 @@ fn value_contains_official_whoop_label_marker(value: &Value) -> bool {
             ) && child.as_bool().unwrap_or(true)
             {
                 return true;
+            }
+            // The `label_policy` field carries the constant policy declaration that
+            // states official WHOOP values are validation labels, not inputs. That
+            // declaration string legitimately starts with `official_whoop_`, so skip
+            // it here; any other value under `label_policy` is still scanned.
+            if normalized_marker(key).as_str() == "label_policy"
+                && child.as_str() == Some(OFFICIAL_WHOOP_LABEL_POLICY)
+            {
+                return false;
             }
             value_contains_official_whoop_label_marker(child)
         }),
@@ -7428,10 +7419,7 @@ fn validate_raw_byte_json_policy(
     if include_raw_bytes {
         return;
     }
-    match serde_json::from_str::<Value>(value) {
-        Ok(value) => validate_raw_byte_json_value_policy(&value, false, field, issues),
-        Err(_) => {}
-    }
+    if let Ok(value) = serde_json::from_str::<Value>(value) { validate_raw_byte_json_value_policy(&value, false, field, issues) }
 }
 
 fn validate_raw_byte_json_value_policy(
@@ -7642,13 +7630,12 @@ fn validate_jsonl_file(
             )),
         }
     }
-    if let Some(expected_row_count) = expected_row_count {
-        if row_count != expected_row_count {
+    if let Some(expected_row_count) = expected_row_count
+        && row_count != expected_row_count {
             issues.push(format!(
                 "{path} row_count mismatch: manifest {expected_row_count}, actual {row_count}"
             ));
         }
-    }
 }
 
 fn validate_csv_file(
@@ -7784,11 +7771,10 @@ fn write_export_zip(
     zip_output_path: &Path,
     manifest: &ExportManifest,
 ) -> GooseResult<()> {
-    if let Some(parent) = zip_output_path.parent() {
-        if !parent.as_os_str().is_empty() {
+    if let Some(parent) = zip_output_path.parent()
+        && !parent.as_os_str().is_empty() {
             fs::create_dir_all(parent).map_err(|source| GooseError::io(parent, source))?;
         }
-    }
 
     let zip_file =
         File::create(zip_output_path).map_err(|source| GooseError::io(zip_output_path, source))?;

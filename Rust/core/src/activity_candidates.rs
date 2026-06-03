@@ -502,26 +502,22 @@ fn combined_confidence(
 ) -> f64 {
     let mut scores = Vec::new();
 
-    if let Some(heart_rate) = heart_rate {
-        if is_unit_interval(heart_rate.confidence_0_to_1) {
+    if let Some(heart_rate) = heart_rate
+        && is_unit_interval(heart_rate.confidence_0_to_1) {
             scores.push(heart_rate.confidence_0_to_1.clamp(0.0, 1.0));
         }
-    }
-    if let Some(motion) = motion {
-        if is_unit_interval(motion.confidence_0_to_1) {
+    if let Some(motion) = motion
+        && is_unit_interval(motion.confidence_0_to_1) {
             scores.push(motion.confidence_0_to_1.clamp(0.0, 1.0));
         }
-    }
-    if let Some(command_sync) = command_sync {
-        if command_sync.synced && is_unit_interval(command_sync.confidence_0_to_1) {
+    if let Some(command_sync) = command_sync
+        && command_sync.synced && is_unit_interval(command_sync.confidence_0_to_1) {
             scores.push(command_sync.confidence_0_to_1.clamp(0.0, 1.0));
         }
-    }
-    if let Some(gravity_stability) = gravity_stability {
-        if is_unit_interval(gravity_stability) {
+    if let Some(gravity_stability) = gravity_stability
+        && is_unit_interval(gravity_stability) {
             scores.push(gravity_stability.clamp(0.0, 1.0));
         }
-    }
 
     if scores.is_empty() {
         0.0
@@ -701,6 +697,5 @@ fn normalized_marker(value: &str) -> String {
     value
         .trim()
         .to_ascii_lowercase()
-        .replace('-', "_")
-        .replace(' ', "_")
+        .replace(['-', ' '], "_")
 }

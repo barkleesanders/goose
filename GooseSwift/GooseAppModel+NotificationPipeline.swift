@@ -86,7 +86,10 @@ extension GooseAppModel {
     parseNotificationFrames(frames, event: event)
   }
 
-  func handleNotificationIngestResultWithoutCapture(
+  // Runs off-main on the serial notification ingest queue. Touches only
+  // lock/serial-queue-isolated state (queue-depth counters, the BLE diagnostic
+  // log, the UI-state aggregator) and forwards into the off-main parse queue.
+  nonisolated func handleNotificationIngestResultWithoutCapture(
     _ result: NotificationIngestResult,
     parseContext: NotificationParseContext
   ) {
@@ -119,7 +122,10 @@ extension GooseAppModel {
     parseNotificationFrames(frames, event: event, context: parseContext)
   }
 
-  func handleEmptyNotificationIngestResult(_ result: NotificationIngestResult) {
+  // Runs off-main on the serial notification ingest queue. Touches only
+  // lock/serial-queue-isolated state (queue-depth counters, the BLE diagnostic
+  // log, and skippedNotificationDiagnostics which is confined to this queue).
+  nonisolated func handleEmptyNotificationIngestResult(_ result: NotificationIngestResult) {
     let (queueDepth, highWatermark) = decrementNotificationIngestQueueDepth()
     publishPipelinePerformanceStatus(
       "ingest processed 0 frames | ingestQ \(queueDepth) hwm \(highWatermark)"
@@ -309,7 +315,7 @@ extension GooseAppModel {
     return true
   }
 
-  static func captureEvidenceID(for frame: NotificationFrame, event: GooseNotificationEvent, index: Int) -> String {
+  nonisolated static func captureEvidenceID(for frame: NotificationFrame, event: GooseNotificationEvent, index: Int) -> String {
     let milliseconds = Int((event.capturedAt.timeIntervalSince1970 * 1000).rounded())
     let prefix = String(frame.hex.prefix(16))
     return "ios.\(event.deviceID.uuidString).\(milliseconds).\(index).\(prefix)"
@@ -354,7 +360,10 @@ extension GooseAppModel {
     )
   }
 
-  func parseNotificationFrames(
+  // Runs off-main: the heavy Rust-bridge parse happens on the serial
+  // notificationParseQueue, frame interpretation uses nonisolated pure
+  // statics, and only the main-handler dispatch hops back to the main actor.
+  nonisolated func parseNotificationFrames(
     _ frames: [NotificationFrame],
     event: GooseNotificationEvent,
     context: NotificationParseContext
@@ -470,7 +479,11 @@ extension GooseAppModel {
     }
   }
 
-  func handleParsedNotificationFramesWithoutMain(_ dispatch: ParsedNotificationFrameDispatch) {
+  // Telemetry-only completion path for batches with no main-actor work (note
+  // the "main=false" status strings). Runs off-main on the parse queue and
+  // touches only lock/serial-isolated counters, the BLE diagnostic log, and the
+  // UI-state aggregator.
+  nonisolated func handleParsedNotificationFramesWithoutMain(_ dispatch: ParsedNotificationFrameDispatch) {
     let (queueDepth, highWatermark) = decrementNotificationParseQueueDepth()
     if let timing = dispatch.bridgeTiming {
       recordRustBridgeTiming(
@@ -510,7 +523,7 @@ extension GooseAppModel {
     )
   }
 
-  static func interpretNotificationFrame(
+  nonisolated static func interpretNotificationFrame(
     _ result: NotificationFrameParseResult,
     event: GooseNotificationEvent,
     healthCaptureActive: Bool,
@@ -553,7 +566,7 @@ extension GooseAppModel {
     )
   }
 
-  static func requiresMainParsedFrameHandling(
+  nonisolated static func requiresMainParsedFrameHandling(
     _ interpretation: NotificationFrameInterpretation,
     overnightGuardActive: Bool
   ) -> Bool {
@@ -570,7 +583,7 @@ extension GooseAppModel {
     return false
   }
 
-  static func canHandleDataSignalOffMain(
+  nonisolated static func canHandleDataSignalOffMain(
     _ interpretation: NotificationFrameInterpretation,
     overnightGuardActive: Bool,
     respiratoryPacketWatchActive: Bool
@@ -587,7 +600,7 @@ extension GooseAppModel {
       && interpretation.whoopEvent == nil
   }
 
-  static func recordSkippedParsedFrameMainHandling(
+  nonisolated static func recordSkippedParsedFrameMainHandling(
     _ result: ParsedNotificationFrameResult,
     ble: GooseBLEClient,
     packetUIStateAggregator: PacketUIStateAggregator
@@ -663,7 +676,7 @@ extension GooseAppModel {
     let deviceModel: String
   }
 
-  static func captureFrameRows(for request: CaptureFrameRowBuildRequest) -> [CapturedFrameWriteRow] {
+  nonisolated static func captureFrameRows(for request: CaptureFrameRowBuildRequest) -> [CapturedFrameWriteRow] {
     request.frames.enumerated().map { index, frame in
       let evidenceID = Self.captureEvidenceID(for: frame, event: request.event, index: index)
       return CapturedFrameWriteRow(
@@ -689,7 +702,11 @@ extension GooseAppModel {
     let usedBufferedData: Bool
   }
 
-  func notificationIngestResult(for event: GooseNotificationEvent) -> NotificationIngestResult {
+  // Runs on the serial `notificationIngestQueue` (see handleNotification). The
+  // frame-reassembly buffer it touches is only ever accessed from that serial
+  // queue, so this work is correctly isolated there rather than on the main
+  // actor.
+  nonisolated func notificationIngestResult(for event: GooseNotificationEvent) -> NotificationIngestResult {
     let reassembly = gooseFrames(in: event.value, event: event)
     return NotificationIngestResult(
       event: event,
@@ -701,7 +718,7 @@ extension GooseAppModel {
     )
   }
 
-  func incrementNotificationIngestQueueDepth() -> (depth: Int, highWatermark: Int) {
+  nonisolated func incrementNotificationIngestQueueDepth() -> (depth: Int, highWatermark: Int) {
     notificationIngestStateLock.lock()
     notificationIngestQueueDepth += 1
     notificationIngestQueueHighWatermark = max(notificationIngestQueueHighWatermark, notificationIngestQueueDepth)
@@ -710,7 +727,7 @@ extension GooseAppModel {
     return snapshot
   }
 
-  func decrementNotificationIngestQueueDepth() -> (depth: Int, highWatermark: Int) {
+  nonisolated func decrementNotificationIngestQueueDepth() -> (depth: Int, highWatermark: Int) {
     notificationIngestStateLock.lock()
     notificationIngestQueueDepth = max(0, notificationIngestQueueDepth - 1)
     let snapshot = (notificationIngestQueueDepth, notificationIngestQueueHighWatermark)
@@ -718,7 +735,7 @@ extension GooseAppModel {
     return snapshot
   }
 
-  func incrementNotificationParseQueueDepth() -> (depth: Int, highWatermark: Int) {
+  nonisolated func incrementNotificationParseQueueDepth() -> (depth: Int, highWatermark: Int) {
     notificationParseStateLock.lock()
     notificationParseQueueDepth += 1
     notificationParseQueueHighWatermark = max(notificationParseQueueHighWatermark, notificationParseQueueDepth)
@@ -727,7 +744,7 @@ extension GooseAppModel {
     return snapshot
   }
 
-  func decrementNotificationParseQueueDepth() -> (depth: Int, highWatermark: Int) {
+  nonisolated func decrementNotificationParseQueueDepth() -> (depth: Int, highWatermark: Int) {
     notificationParseStateLock.lock()
     notificationParseQueueDepth = max(0, notificationParseQueueDepth - 1)
     let snapshot = (notificationParseQueueDepth, notificationParseQueueHighWatermark)
@@ -735,14 +752,14 @@ extension GooseAppModel {
     return snapshot
   }
 
-  func notificationParseQueueSnapshot() -> (depth: Int, highWatermark: Int) {
+  nonisolated func notificationParseQueueSnapshot() -> (depth: Int, highWatermark: Int) {
     notificationParseStateLock.lock()
     let snapshot = (notificationParseQueueDepth, notificationParseQueueHighWatermark)
     notificationParseStateLock.unlock()
     return snapshot
   }
 
-  func incrementCaptureFrameRowBuildQueueDepth() -> (depth: Int, highWatermark: Int) {
+  nonisolated func incrementCaptureFrameRowBuildQueueDepth() -> (depth: Int, highWatermark: Int) {
     captureFrameRowBuildStateLock.lock()
     captureFrameRowBuildQueueDepth += 1
     captureFrameRowBuildQueueHighWatermark = max(captureFrameRowBuildQueueHighWatermark, captureFrameRowBuildQueueDepth)
@@ -751,7 +768,7 @@ extension GooseAppModel {
     return snapshot
   }
 
-  func decrementCaptureFrameRowBuildQueueDepth() -> (depth: Int, highWatermark: Int) {
+  nonisolated func decrementCaptureFrameRowBuildQueueDepth() -> (depth: Int, highWatermark: Int) {
     captureFrameRowBuildStateLock.lock()
     captureFrameRowBuildQueueDepth = max(0, captureFrameRowBuildQueueDepth - 1)
     let snapshot = (captureFrameRowBuildQueueDepth, captureFrameRowBuildQueueHighWatermark)
@@ -768,7 +785,7 @@ extension GooseAppModel {
     let usedBufferedData: Bool
   }
 
-  func gooseFrames(in data: Data, event: GooseNotificationEvent) -> FrameReassemblyResult {
+  nonisolated func gooseFrames(in data: Data, event: GooseNotificationEvent) -> FrameReassemblyResult {
     let key = frameReassemblyKey(for: event)
     let hadBufferedData = frameReassemblyBuffers[key]?.isEmpty == false
     var bytes = Array(frameReassemblyBuffers[key] ?? Data())
@@ -827,11 +844,11 @@ extension GooseAppModel {
     )
   }
 
-  func frameReassemblyKey(for event: GooseNotificationEvent) -> String {
+  nonisolated func frameReassemblyKey(for event: GooseNotificationEvent) -> String {
     "\(event.deviceID.uuidString)|\(event.serviceUUID)|\(event.characteristicUUID)|\(event.rustDeviceType)"
   }
 
-  static func frameSummary(_ parsed: [String: Any]) -> String {
+  nonisolated static func frameSummary(_ parsed: [String: Any]) -> String {
     let packet = intString(parsed["packet_type"])
     let packetName = parsed["packet_type_name"] as? String ?? "unknown"
     let sequence = intString(parsed["sequence"])

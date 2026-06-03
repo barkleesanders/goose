@@ -2085,8 +2085,7 @@ fn validate_export_rejects_malformed_local_health_metric_rows() {
     .to_string()
         + "\n";
 
-    let files = vec![
-        (
+    let files = [(
             "data/local_health_daily_activity_metrics.jsonl",
             daily_activity_jsonl,
             1_u64,
@@ -2133,8 +2132,7 @@ fn validate_export_rejects_malformed_local_health_metric_rows() {
             "header\nrow\n".to_string(),
             1_u64,
             "csv",
-        ),
-    ];
+        )];
 
     let manifest_files = files
         .iter()

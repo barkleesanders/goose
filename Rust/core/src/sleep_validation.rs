@@ -1623,9 +1623,9 @@ fn sleep_v1_evidence_folder_next_actions(
 fn sleep_v1_evidence_folder_issue_scope(issue: &str) -> &'static str {
     if let Some(filename) = issue.strip_prefix("missing_required_file:") {
         sleep_v1_required_report_issue_scope(filename)
-    } else if issue.starts_with("missing_supporting_file:") {
-        "sleep_v1.evidence_folder.files"
-    } else if issue.starts_with("unexpected_evidence_file:") {
+    } else if issue.starts_with("missing_supporting_file:")
+        || issue.starts_with("unexpected_evidence_file:")
+    {
         "sleep_v1.evidence_folder.files"
     } else if issue.starts_with("schema_mismatch:")
         || issue.starts_with("generated_by_mismatch:")
@@ -4844,7 +4844,7 @@ fn explanation_stability_report(
             perturbed_sleep_window_confidence_0_to_1,
             repeated_run_delta,
             small_perturbation_delta,
-            &options,
+            options,
             issues.len(),
             quality_flags.len(),
             0,
@@ -6257,13 +6257,11 @@ fn parse_rfc3339_utc_unix_ms(value: &str) -> Option<i64> {
     }
 
     let days = days_from_civil(year, month, day);
-    Some(
-        days.checked_mul(86_400_000)?
+    days.checked_mul(86_400_000)?
             .checked_add(i64::from(hour) * 3_600_000)?
             .checked_add(i64::from(minute) * 60_000)?
             .checked_add(i64::from(second) * 1_000)?
-            .checked_add(i64::from(millis))?,
-    )
+            .checked_add(i64::from(millis))
 }
 
 fn parse_millis_fraction(value: &str) -> Option<u32> {

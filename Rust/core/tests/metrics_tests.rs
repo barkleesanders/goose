@@ -1559,7 +1559,6 @@ fn goose_sleep_v1_returns_baseline_from_prior_nights() {
             ]),
             heart_rate_dip_percent: Some(13.0),
             input_ids: vec!["sleep.v1.baseline.fixture".to_string()],
-            ..Default::default()
         },
         model_status: SleepModelStatusInput {
             sleep_permission_granted: true,

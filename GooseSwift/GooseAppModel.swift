@@ -155,23 +155,32 @@ final class GooseAppModel: ObservableObject {
   var passiveActivityPacketCount = 0
   var movementPacketLogCount = 0
   var deviceSignalCountsByFamily: [String: Int] = [:]
-  var notificationIngestQueueDepth = 0
-  var notificationIngestQueueHighWatermark = 0
-  var notificationParseQueueDepth = 0
-  var notificationParseQueueHighWatermark = 0
+  // Guarded by notificationIngestStateLock / notificationParseStateLock /
+  // captureFrameRowBuildStateLock; mutated from the off-main ingest/parse/
+  // row-build queues, so accessed nonisolated under those locks rather than via
+  // main-actor isolation.
+  nonisolated(unsafe) var notificationIngestQueueDepth = 0
+  nonisolated(unsafe) var notificationIngestQueueHighWatermark = 0
+  nonisolated(unsafe) var notificationParseQueueDepth = 0
+  nonisolated(unsafe) var notificationParseQueueHighWatermark = 0
   let captureFrameRowBuildStateLock = NSLock()
-  var captureFrameRowBuildQueueDepth = 0
-  var captureFrameRowBuildQueueHighWatermark = 0
+  nonisolated(unsafe) var captureFrameRowBuildQueueDepth = 0
+  nonisolated(unsafe) var captureFrameRowBuildQueueHighWatermark = 0
   let pipelinePerformanceLogLock = NSLock()
-  var lastPipelinePerformanceLoggedAt = Date.distantPast
+  // Guarded by pipelinePerformanceLogLock; throttles bridge-timing logs from the
+  // off-main parse queue.
+  nonisolated(unsafe) var lastPipelinePerformanceLoggedAt = Date.distantPast
   var respiratoryPacketWatchK18Count = 0
   var respiratoryPacketWatchK24Count = 0
   var respiratoryPacketWatchStartedAt: Date?
   var lastWhoopEventLoggedAt = Date.distantPast
   var lastWhoopEventStatusUpdatedAt = Date.distantPast
   var activityTimelineRefreshGeneration = 0
-  var skippedNotificationDiagnostics = SkippedNotificationDiagnostics()
-  var frameReassemblyBuffers: [String: Data] = [:]
+  // Confined to the serial notificationIngestQueue (only touched from
+  // notificationIngestResult / handleEmptyNotificationIngestResult), so the
+  // serial queue provides isolation rather than the main actor.
+  nonisolated(unsafe) var skippedNotificationDiagnostics = SkippedNotificationDiagnostics()
+  nonisolated(unsafe) var frameReassemblyBuffers: [String: Data] = [:]
   let autoStartHealthPacketCaptureOnReady: Bool = {
     let processInfo = ProcessInfo.processInfo
     return processInfo.arguments.contains("--goose-start-health-packet-capture")
@@ -276,7 +285,7 @@ final class GooseAppModel: ObservableObject {
     formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
     return formatter
   }()
-  static let maximumBufferedFrameBytes = 64 * 1024
+  nonisolated static let maximumBufferedFrameBytes = 64 * 1024
   static let packetImportRevisionInterval: TimeInterval = 5
   static let healthPacketCaptureUIUpdateInterval: TimeInterval = 1
   static let healthPacketCaptureSummaryLogInterval: TimeInterval = 10
@@ -290,7 +299,7 @@ final class GooseAppModel: ObservableObject {
   static let movementPacketStatusInterval: TimeInterval = 1
   static let movementPacketLogInterval: TimeInterval = 5
   static let whoopDataSignalLogInterval: TimeInterval = 10
-  static let pipelinePerformanceLogInterval: TimeInterval = 5
+  nonisolated static let pipelinePerformanceLogInterval: TimeInterval = 5
   static let whoopEventStatusInterval: TimeInterval = 1
   static let whoopDataSignalStatusInterval: TimeInterval = 1
   static let whoopDataSignalPipelineMaxSamples = 256

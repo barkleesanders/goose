@@ -194,10 +194,7 @@ impl FrameAccumulator {
         let mut frames = Vec::new();
         let mut dropped = self.drop_until_frame_start();
 
-        loop {
-            let Some(expected_len) = self.device_type.expected_frame_len(&self.buffer) else {
-                break;
-            };
+        while let Some(expected_len) = self.device_type.expected_frame_len(&self.buffer) {
             if self.buffer.len() < expected_len {
                 break;
             }

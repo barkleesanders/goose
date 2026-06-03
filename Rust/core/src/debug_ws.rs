@@ -423,8 +423,8 @@ pub fn append_debug_event(
             input.session_id
         )));
     }
-    if let Some(command_id) = input.command_id.as_deref() {
-        if !command_id.trim().is_empty() {
+    if let Some(command_id) = input.command_id.as_deref()
+        && !command_id.trim().is_empty() {
             let command = store.debug_command(command_id)?.ok_or_else(|| {
                 GooseError::message(format!("debug command {command_id} not found"))
             })?;
@@ -435,7 +435,6 @@ pub fn append_debug_event(
                 )));
             }
         }
-    }
 
     let sequence = store.next_debug_event_sequence(&input.session_id)?;
     let event = DebugEventEnvelope {
@@ -627,11 +626,10 @@ fn validate_event<'a>(
                 event.sequence
             )),
         }
-    } else if let Some(command_id) = event.command_id.as_deref() {
-        if !command_id.trim().is_empty() && !command_by_id.contains_key(command_id) {
+    } else if let Some(command_id) = event.command_id.as_deref()
+        && !command_id.trim().is_empty() && !command_by_id.contains_key(command_id) {
             issues.push(format!("event_unknown_command_id:{}", command_id));
         }
-    }
 }
 
 fn validate_event_shape(event: &DebugEventEnvelope, issues: &mut Vec<String>) {

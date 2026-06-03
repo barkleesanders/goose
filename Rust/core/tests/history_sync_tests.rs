@@ -1267,10 +1267,10 @@ fn physical_raw_evidence_anchors() -> Vec<HistoricalSyncRawEvidenceAnchor> {
     .collect()
 }
 
-fn step<'a>(
-    report: &'a goose_core::historical_sync::HistoricalSyncDryRunReport,
+fn step(
+    report: &goose_core::historical_sync::HistoricalSyncDryRunReport,
     kind: HistoricalSyncPlanStepKind,
-) -> &'a goose_core::historical_sync::HistoricalSyncPlanStep {
+) -> &goose_core::historical_sync::HistoricalSyncPlanStep {
     report
         .steps
         .iter()

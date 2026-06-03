@@ -916,6 +916,22 @@ fn bridge_exposes_command_definitions_for_device_and_debug_controls() {
 
 #[test]
 fn bridge_runs_ui_coverage_audit_for_debug_coverage_surface() {
+    // The UI coverage audit reads <repo>/apk-ui-inventory/coverage-map.json, an
+    // inventory derived from decompiling the official WHOOP Android APK. It is
+    // the author's private artifact (the asserted sha256 digests and counts are
+    // tied to that exact decompilation) and is not produced by any in-repo
+    // generator, so this test self-skips when the inventory is absent.
+    let coverage_map = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../apk-ui-inventory/coverage-map.json");
+    if !coverage_map.exists() {
+        eprintln!(
+            "skipping bridge_runs_ui_coverage_audit_for_debug_coverage_surface: \
+             {} not present (author's private WHOOP APK UI inventory)",
+            coverage_map.display()
+        );
+        return;
+    }
+
     let response = request(serde_json::json!({
         "schema": "goose.bridge.request.v1",
         "request_id": "ui-coverage-1",
@@ -2375,11 +2391,9 @@ fn bridge_reports_capture_arrival_plan_for_device_day_readiness() {
     assert!(report["action_count"].as_u64().unwrap() > 0);
     assert_eq!(report["next_capture_focus"]["source"], "Capture Trust");
     assert!(
-        report["next_capture_focus"]["scope"]
+        !report["next_capture_focus"]["scope"]
             .as_str()
-            .unwrap()
-            .len()
-            > 0
+            .unwrap().is_empty()
     );
     assert!(
         report["next_capture_focus"]["reason"]
@@ -2683,13 +2697,12 @@ fn bridge_runs_step_packet_discovery_over_decoded_motion_frames() {
     assert_eq!(report["decoded_frame_count"], 1);
     assert_eq!(report["inspected_frame_count"], 1);
     assert_eq!(report["explicit_step_counter_found"], false);
-    assert_eq!(
+    assert!(
         report["issues"]
             .as_array()
             .unwrap()
             .iter()
-            .any(|issue| issue == "no_explicit_step_counter_field_found"),
-        true
+            .any(|issue| issue == "no_explicit_step_counter_field_found")
     );
 }
 
@@ -2750,13 +2763,12 @@ fn bridge_runs_step_capture_validation_with_validation_labels() {
     assert_eq!(report["manual_step_delta"], 100);
     assert_eq!(report["official_whoop_step_delta"], 97);
     assert_eq!(report["counter_delta_candidate_count"], 0);
-    assert_eq!(
+    assert!(
         report["issues"]
             .as_array()
             .unwrap()
             .iter()
-            .any(|issue| issue == "no_counter_delta_candidates"),
-        true
+            .any(|issue| issue == "no_counter_delta_candidates")
     );
 }
 

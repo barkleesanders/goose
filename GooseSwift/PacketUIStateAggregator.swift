@@ -21,7 +21,11 @@ struct PacketUIStateSnapshot {
   let coalescedStatusUpdateSummary: String?
 }
 
-final class PacketUIStateAggregator {
+// Thread-safe: every mutation of the pending-state fields runs on the private
+// serial `queue` (see set/recordDeviceSignal/schedulePublish), so this service
+// object is safe to share across the notification ingest/parse background
+// queues. The synchronization is manual (serial queue), hence @unchecked.
+final class PacketUIStateAggregator: @unchecked Sendable {
   enum Field {
     case lastParsedFrameSummary
     case movementPacketStatus

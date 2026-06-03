@@ -1,10 +1,21 @@
 #[test]
 fn command_capture_plan_cli_emits_selected_command_plan() {
+    // Author's private official-app emulator capture (provenance
+    // capture_kind=official_app_to_macos_emulator). Not produced by any in-repo
+    // generator, so self-skip when the fixture is absent.
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../fixtures/command-evidence/whoop-emulator-command-evidence.json");
+    if !path.exists() {
+        eprintln!(
+            "skipping command_capture_plan_cli_emits_selected_command_plan: \
+             {} not present (author's private official-app emulator capture)",
+            path.display()
+        );
+        return;
+    }
     let output = std::process::Command::new(env!("CARGO_BIN_EXE_goose-command-capture-plan"))
         .arg("--evidence")
-        .arg(path)
+        .arg(&path)
         .arg("--commands")
         .arg("toggle_realtime_hr,start_firmware_load_new")
         .output()

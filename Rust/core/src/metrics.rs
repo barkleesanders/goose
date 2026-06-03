@@ -2836,12 +2836,12 @@ fn sleep_cardiovascular_score(input: &SleepV1Input, baseline: Option<&SleepBasel
         baseline_window.average_sleep_hr_trend_bpm_per_hour,
     );
 
-    if trend_score.is_some() {
+    if let Some(trend) = trend_score {
         let base = dip_score * 0.35
             + average_hr_score * 0.20
             + min_hr_score * 0.15
             + dip_vs_baseline_score * 0.15
-            + trend_score.unwrap() * 0.15;
+            + trend * 0.15;
         pre_sleep_hr_score
             .map(|score| base * 0.90 + score * 0.10)
             .unwrap_or(base)

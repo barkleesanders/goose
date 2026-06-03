@@ -143,7 +143,7 @@ pub fn check_storage_database(options: StorageCheckOptions<'_>) -> GooseResult<S
     let row_counts_ready = tables.iter().all(|table| table.row_count.is_some());
     let self_test_ready = self_test
         .as_ref()
-        .map_or(true, |report| storage_self_test_ready(report));
+        .is_none_or(storage_self_test_ready);
     let storage_ready = schema_version_valid
         && foreign_keys_valid
         && integrity_valid

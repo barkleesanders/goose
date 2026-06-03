@@ -1886,18 +1886,10 @@ fn timestamp_packet_confirmed_rows(
         .filter_map(|(index, row)| {
             let packet_kind = normalize_history_marker(&row.packet_kind);
             let source_signal = normalize_history_marker(&row.source_signal);
-            let Some(device_timestamp_seconds) = row.device_timestamp_seconds else {
-                return None;
-            };
-            let Some(sample_time) = row.sample_time.as_deref() else {
-                return None;
-            };
-            let Some(sample_time_unix_ms) = parse_rfc3339_utc_unix_ms(sample_time) else {
-                return None;
-            };
-            let Some(captured_at_unix_ms) = parse_rfc3339_utc_unix_ms(&row.captured_at) else {
-                return None;
-            };
+            let device_timestamp_seconds = row.device_timestamp_seconds?;
+            let sample_time = row.sample_time.as_deref()?;
+            let sample_time_unix_ms = parse_rfc3339_utc_unix_ms(sample_time)?;
+            let captured_at_unix_ms = parse_rfc3339_utc_unix_ms(&row.captured_at)?;
             let device_timestamp_subseconds = row.device_timestamp_subseconds.unwrap_or(0);
             if device_timestamp_subseconds > 999 {
                 return None;
@@ -1969,13 +1961,11 @@ fn parse_rfc3339_utc_unix_ms(value: &str) -> Option<i64> {
     }
 
     let days = days_from_civil(year, month, day);
-    Some(
-        days.checked_mul(86_400_000)?
+    days.checked_mul(86_400_000)?
             .checked_add(i64::from(hour) * 3_600_000)?
             .checked_add(i64::from(minute) * 60_000)?
             .checked_add(i64::from(second) * 1_000)?
-            .checked_add(i64::from(millis))?,
-    )
+            .checked_add(i64::from(millis))
 }
 
 fn parse_millis_fraction(value: &str) -> Option<u32> {

@@ -1,3 +1,4 @@
+#![allow(clippy::too_many_arguments, clippy::nonminimal_bool)] // validation-suite bin scaffolding
 use std::{
     collections::{BTreeMap, BTreeSet},
     env,
@@ -2079,7 +2080,7 @@ fn markdown_join(values: &[String]) -> String {
 }
 
 fn markdown_escape_inline(value: &str) -> String {
-    value.replace('\n', " ").replace('\r', " ")
+    value.replace(['\n', '\r'], " ")
 }
 
 fn markdown_table_cell(value: &str) -> String {
@@ -5324,14 +5325,13 @@ fn readiness_for_case(
         if let Some(promotion_status) = &record.promotion_status {
             promotion_statuses.insert(promotion_status.clone());
         }
-        if let Some(local_value) = &record.local_value {
-            if !local_value.is_null() {
+        if let Some(local_value) = &record.local_value
+            && !local_value.is_null() {
                 has_any_local_value = true;
                 if record.source_kind != "unavailable" {
                     has_non_unavailable_value = true;
                 }
             }
-        }
         if let Some(input_packet_count) = record.input_packet_count {
             if input_packet_count > 0 {
                 has_any_input_evidence = true;

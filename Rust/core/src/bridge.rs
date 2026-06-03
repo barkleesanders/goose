@@ -2498,9 +2498,23 @@ fn handle_bridge_request_inner(request: BridgeRequest) -> BridgeResponse {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn goose_core_version_json() -> *mut c_char {
-    json_to_c_string(core_version_payload())
+    // Catch any panic so it cannot unwind across the C boundary into Swift.
+    match std::panic::catch_unwind(core_version_payload) {
+        Ok(payload) => json_to_c_string(payload),
+        Err(_) => response_to_c_string(&bridge_error(
+            "unknown",
+            "core_panic",
+            "the Goose core panicked while building the version payload",
+        )),
+    }
 }
 
+/// # Safety
+///
+/// `request_json` must be null or a valid, null-terminated C string that stays
+/// valid for the duration of the call; the caller retains ownership of it. The
+/// returned pointer is owned by Rust and must be released exactly once with
+/// [`goose_bridge_free_string`]; the caller must not free it itself.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn goose_bridge_handle_json(request_json: *const c_char) -> *mut c_char {
     if request_json.is_null() {
@@ -2522,9 +2536,27 @@ pub unsafe extern "C" fn goose_bridge_handle_json(request_json: *const c_char) -
             ));
         }
     };
-    string_to_c_string(handle_bridge_request_json(request))
+    // Convert any core panic into a structured error response instead of
+    // unwinding across the C boundary / aborting the host app. Relies on
+    // `panic = "unwind"` in Cargo.toml [profile.release].
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        handle_bridge_request_json(request)
+    })) {
+        Ok(response) => string_to_c_string(response),
+        Err(_) => response_to_c_string(&bridge_error(
+            "unknown",
+            "core_panic",
+            "the Goose core panicked while handling the request",
+        )),
+    }
 }
 
+/// # Safety
+///
+/// `value` must be null or a pointer previously returned by this library
+/// ([`goose_bridge_handle_json`] or [`goose_core_version_json`]). Each such
+/// pointer must be passed here exactly once; passing any other pointer, or the
+/// same pointer more than once, is undefined behavior.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn goose_bridge_free_string(value: *mut c_char) {
     if value.is_null() {
@@ -3106,15 +3138,14 @@ fn matching_calibration_algorithm_run<'a>(
     provenance: &serde_json::Value,
     options: &CalibrationOptions,
 ) -> Option<&'a AlgorithmRunRecord> {
-    if let Some(run_id) = provenance_algorithm_run_id(provenance) {
-        if let Some(run) = algorithm_runs.iter().find(|run| {
+    if let Some(run_id) = provenance_algorithm_run_id(provenance)
+        && let Some(run) = algorithm_runs.iter().find(|run| {
             run.run_id.as_str() == run_id
                 && run.algorithm_id.as_str() == options.algorithm_id.as_str()
                 && run.version.as_str() == options.algorithm_version.as_str()
         }) {
             return Some(run);
         }
-    }
 
     algorithm_runs.iter().find(|run| {
         run.algorithm_id.as_str() == options.algorithm_id.as_str()
@@ -5577,7 +5608,7 @@ fn activity_list_sessions_with_metrics_bridge(
     for metric in metrics {
         metrics_by_session
             .entry(metric.activity_session_id.clone())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(metric);
     }
 
@@ -6781,7 +6812,7 @@ fn capture_arrival_plan_next_focus(
         arrival_action_is_local_health_validation,
         arrival_action_is_metric_input_work,
     ] {
-        if let Some(action) = actions.iter().find(|action| priority(action)).cloned() {
+        if let Some(action) = actions.iter().find(priority).cloned() {
             return Some(action);
         }
     }
@@ -7807,7 +7838,7 @@ mod tests {
             120.0,
         );
 
-        assert!(sleep_history_schedule_baseline(&[impossible_night.clone()]).is_none());
+        assert!(sleep_history_schedule_baseline(std::slice::from_ref(&impossible_night)).is_none());
 
         let (bedtime, wake_time) =
             sleep_history_schedule_baseline(&[usable_night, impossible_night]).unwrap();

@@ -1,6 +1,10 @@
 import Foundation
 
-final class WhoopDataSignalPipeline {
+// Thread-safe: all mutable counters/state are guarded by `stateLock` and work
+// is serialized on the private `queue`, so this pipeline is safe to share with
+// the off-main notification parse queue. Synchronization is manual, hence
+// @unchecked.
+final class WhoopDataSignalPipeline: @unchecked Sendable {
   var onStatus: ((String) -> Void)?
 
   private let queue = DispatchQueue(label: "com.goose.swift.whoop-data-signal", qos: .utility)

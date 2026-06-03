@@ -74,7 +74,11 @@ struct CapturedFrameWriteRow {
   }
 }
 
-final class CaptureFrameEnqueueAggregator {
+// Thread-safe: all mutation of the pending snapshot/publish bookkeeping runs on
+// the private serial `queue` (record/flushPendingSnapshot/schedulePublish), so
+// this aggregator is safe to call from the off-main capture-frame row-build
+// queue. Synchronization is manual, hence @unchecked.
+final class CaptureFrameEnqueueAggregator: @unchecked Sendable {
   var onSnapshot: ((CaptureFrameEnqueueSnapshot) -> Void)?
 
   private let queue = DispatchQueue(label: "com.goose.swift.capture-frame-enqueue", qos: .utility)

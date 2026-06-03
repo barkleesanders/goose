@@ -59,10 +59,10 @@ fn run() -> goose_core::GooseResult<()> {
 }
 
 fn optional_usize(args: &[String], name: &str) -> goose_core::GooseResult<Option<usize>> {
-    Ok(value(args, name)?
+    value(args, name)?
         .map(|raw| {
             raw.parse::<usize>()
                 .map_err(|source| GooseError::message(format!("invalid {name}: {source}")))
         })
-        .transpose()?)
+        .transpose()
 }

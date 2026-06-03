@@ -37,7 +37,7 @@ fn energy_unavailable_status_writes_calorie_activity_metrics_with_provenance() {
         report.schema,
         "goose.energy-unavailable-daily-status-report.v1"
     );
-    assert_eq!(report.energy_daily_rollup.pass, false);
+    assert!(!report.energy_daily_rollup.pass);
     assert_eq!(report.available_energy_metric_count, 0);
     assert_eq!(report.unavailable_metric_count, 3);
     assert_eq!(report.written_metric_count, 3);

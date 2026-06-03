@@ -110,8 +110,8 @@ fn raw_motion_step_estimator_writes_validated_local_estimate_metric_when_request
 
     assert!(report.pass, "{:?}", report.issues);
     assert!(report.write_metric);
-    assert_eq!(report.daily_metric_written, true);
-    assert_eq!(report.metric_provenance_written, true);
+    assert!(report.daily_metric_written);
+    assert!(report.metric_provenance_written);
     assert_eq!(
         report.daily_metric_id.as_deref(),
         Some("daily-activity-raw-motion-steps-2026-06-02-europe-london-local-estimate-v0")

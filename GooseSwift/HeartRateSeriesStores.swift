@@ -57,7 +57,11 @@ struct HeartRateSeriesFile: Codable {
   let samples: [HeartRateSamplePoint]
 }
 
-final class HeartRateSeriesStore {
+// Thread-safe: all access to `samples` and the pending-write/notification
+// bookkeeping is guarded by `stateLock`, and persistence runs on the private
+// `writeQueue`. Safe to capture from background closures; synchronization is
+// manual, hence @unchecked.
+final class HeartRateSeriesStore: @unchecked Sendable {
   static let shared = HeartRateSeriesStore()
   static let didUpdateNotification = Notification.Name("GooseHeartRateSeriesStoreDidUpdate")
 

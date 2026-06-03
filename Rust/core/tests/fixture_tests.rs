@@ -1,3 +1,4 @@
+#![allow(dead_code)] // fixture structs: fields exist for deserialization completeness
 use std::{collections::BTreeMap, fs, path::Path};
 
 use goose_core::activity_candidates::{

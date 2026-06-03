@@ -813,7 +813,7 @@ fn check_sleep_v1_bounds(group: &mut GroupBuilder, rng: &mut DeterministicRng, c
     let sleep_latency_minutes = rng.f64(0.0, stage_awake.min(90.0) * 0.50);
     let wake_after_sleep_onset_minutes = rng.f64(
         0.0,
-        (stage_awake - sleep_latency_minutes).max(0.0).min(180.0),
+        (stage_awake - sleep_latency_minutes).clamp(0.0, 180.0),
     );
     let deep = sleep_duration * rng.f64(0.05, 0.25);
     let rem = sleep_duration * rng.f64(0.10, 0.30);

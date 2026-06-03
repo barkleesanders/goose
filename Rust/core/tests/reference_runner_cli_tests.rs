@@ -34,21 +34,19 @@ fn neurokit_hrv_adapter_emits_external_reference_contract() {
         report["output"]["rmssd_ms"].as_f64().unwrap(),
         14.142135623730951,
     );
-    assert_eq!(
+    assert!(
         report["quality_flags"]
             .as_array()
             .unwrap()
             .iter()
-            .any(|flag| flag == "hand_derived_test_fallback"),
-        true
+            .any(|flag| flag == "hand_derived_test_fallback")
     );
-    assert_eq!(
+    assert!(
         report["provenance"]["library_docs"]
             .as_array()
             .unwrap()
             .iter()
-            .any(|url| url.as_str().unwrap_or("").contains("hrv_time")),
-        true
+            .any(|url| url.as_str().unwrap_or("").contains("hrv_time"))
     );
 }
 
@@ -81,21 +79,19 @@ fn pyhrv_time_domain_adapter_emits_external_reference_contract() {
         8.16496580927726,
     );
     assert_eq!(report["output"]["nn50_count"], 0);
-    assert_eq!(
+    assert!(
         report["parameters"]["pyhrv_functions"]
             .as_array()
             .unwrap()
             .iter()
-            .any(|function| function == "rmssd"),
-        true
+            .any(|function| function == "rmssd")
     );
-    assert_eq!(
+    assert!(
         report["quality_flags"]
             .as_array()
             .unwrap()
             .iter()
-            .any(|flag| flag == "hand_derived_test_fallback"),
-        true
+            .any(|flag| flag == "hand_derived_test_fallback")
     );
 }
 
@@ -142,21 +138,19 @@ fn pyactigraphy_sadeh_adapter_emits_external_reference_contract() {
             .unwrap(),
         0.4,
     );
-    assert_eq!(
+    assert!(
         report["quality_flags"]
             .as_array()
             .unwrap()
             .iter()
-            .any(|flag| flag == "hand_derived_test_fallback"),
-        true
+            .any(|flag| flag == "hand_derived_test_fallback")
     );
-    assert_eq!(
+    assert!(
         report["provenance"]["library_docs"]
             .as_array()
             .unwrap()
             .iter()
-            .any(|url| url.as_str().unwrap_or("").contains("ScoringMixin.Sadeh")),
-        true
+            .any(|url| url.as_str().unwrap_or("").contains("ScoringMixin.Sadeh"))
     );
 }
 
@@ -207,13 +201,12 @@ fn ggir_sleep_summary_adapter_emits_external_reference_contract() {
         150.0,
     );
     assert_eq!(report["output"]["disturbance_count"], 1);
-    assert_eq!(
+    assert!(
         report["provenance"]["library_docs"]
             .as_array()
             .unwrap()
             .iter()
-            .any(|url| url.as_str().unwrap_or("").contains("GGIRoutput")),
-        true
+            .any(|url| url.as_str().unwrap_or("").contains("GGIRoutput"))
     );
 }
 
@@ -263,13 +256,12 @@ fn reference_runner_executes_named_neurokit_hrv_adapter_and_stores_run() {
     assert_eq!(report["pass"], true);
     assert_eq!(report["next_actions"].as_array().unwrap().len(), 0);
     assert_eq!(report["provenance"]["output_units"]["rmssd_ms"], "ms");
-    assert_eq!(
+    assert!(
         report["quality_flags"]
             .as_array()
             .unwrap()
             .iter()
-            .any(|flag| flag == "hand_derived_test_fallback"),
-        true
+            .any(|flag| flag == "hand_derived_test_fallback")
     );
 
     let store = GooseStore::open(&db_path).unwrap();
@@ -388,13 +380,12 @@ fn reference_runner_executes_named_pyhrv_adapter_and_stores_run() {
     assert_eq!(report["provider_kind"], "external_reference");
     assert_eq!(report["algorithm_id"], "reference.hrv.pyhrv_time_domain.v1");
     assert_eq!(report["provenance"]["output_units"]["rmssd_ms"], "ms");
-    assert_eq!(
+    assert!(
         report["quality_flags"]
             .as_array()
             .unwrap()
             .iter()
-            .any(|flag| flag == "hand_derived_test_fallback"),
-        true
+            .any(|flag| flag == "hand_derived_test_fallback")
     );
 
     let store = GooseStore::open(&db_path).unwrap();
@@ -642,13 +633,12 @@ JSON
         report["provenance"]["external_report_provenance"]["library"],
         "NeuroKit2"
     );
-    assert_eq!(
+    assert!(
         report["provenance"]["external_command"]["args"]
             .as_array()
             .unwrap()
             .iter()
-            .any(|arg| arg == "--fixture-provider-mode"),
-        true
+            .any(|arg| arg == "--fixture-provider-mode")
     );
     assert_eq!(
         report["provenance"]["external_command"]["input_sha256"]
