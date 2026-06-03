@@ -16,3 +16,8 @@ Rust/iphoneos/
 Rust/iphonesimulator/
 Vendor/CodexRust/codex-rs/target/
 tmp/
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
