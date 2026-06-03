@@ -3,6 +3,8 @@
 > A field report on dragging an AI-generated app to ship-ready.
 > *Engineering Edition № 001 · June 3, 2026*
 
+> 🍴 **Fork notice + credit.** This lives on a fork of **[b-nnett/goose](https://github.com/b-nnett/goose)**. The Goose app — its design, architecture, and code — is **[@b-nnett](https://github.com/b-nnett)'s** work; full credit to the upstream project. This write-up only documents a hardening pass made on top of it.
+
 **📄 Read the designed edition:**
 - **[goose-rescue.pdf](./goose-rescue.pdf)** — the full magazine, print/PDF (7 spreads)
 - **[goose-rescue.html](./goose-rescue.html)** — the interactive HTML edition (open in a browser)

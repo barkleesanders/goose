@@ -1,6 +1,7 @@
 # Goose - Local Companion for WHOOP 5.0
 
-> 🪿 **The Goose Rescue** — a write-up of the FFI panic-safety hardening, clippy 120→0, App Store compliance, and first simulator launch: [docs/goose-rescue](docs/goose-rescue/README.md) ([PDF](docs/goose-rescue/goose-rescue.pdf)).
+> ## 🍴 This is a fork of [b-nnett/goose](https://github.com/b-nnett/goose)
+> **All original design, architecture, and source code are the work of [@b-nnett](https://github.com/b-nnett)**, the creator of Goose — full credit belongs to the upstream project. This fork does **not** claim authorship of Goose; it adds a hardening pass and documents it. See **[Improvements in this fork](#-improvements-in-this-fork)** below, or the full **[Goose Rescue write-up](docs/goose-rescue/README.md)** ([PDF](docs/goose-rescue/goose-rescue.pdf)).
 
 **Alpha proof of concept. This build is for developers to evaluate whether a project of this scope is viable. It is not ready to use as an app for tracking personal health data yet.**
 
@@ -13,6 +14,19 @@ This prototype targets WHOOP 5.0 only. Other WHOOP generations are not supported
 The app and backend have had very little attention put into performance. The app will lag, very considerably. Performance PRs are welcome, or you can wait until I address it in due course.
 
 Goose is a local-first WHOOP 5.0 data and health metrics project. The iOS app connects to WHOOP 5.0 bands, routes packet data through the Goose Rust core, and turns that data into daily health, recovery, sleep, strain, stress, cardio, energy, coach, and debug views.
+
+## 🪿 Improvements in this fork
+
+*Credit first: the entire app below is [@b-nnett](https://github.com/b-nnett)'s work.* This fork added a human-directed hardening + compliance pass on top of it. Full editorial write-up (with code): **[docs/goose-rescue](docs/goose-rescue/README.md)** · **[PDF](docs/goose-rescue/goose-rescue.pdf)**.
+
+**What was done**
+
+- **FFI panic-safety (the headline fix).** The Rust↔Swift bridge was set to `panic = "abort"`, so any panic in the core became a `SIGABRT` — an instant app crash. Switched to `panic = "unwind"` and wrapped both `extern "C"` entry points in `catch_unwind`, so a core panic now returns a structured `bridge_error` instead of killing the app.
+- **Clippy 120 → 0** on the library — real idiom fixes (`is_some()`+`unwrap()` → `if let`, `let-else` → `?`, manual `loop` → `while let`, `.max().min()` → `.clamp()`, collapsed duplicate `else-if`), not blanket suppressions.
+- **App Store compliance: 4 CRITICALs → GREENLIT.** Added `PrivacyInfo.xcprivacy` (Required-Reason API codes per Apple TN3183), `CFBundleDisplayName`, cleared a false "tracking SDK" match, and wired the manifest into the target.
+- **First real launch.** Built against the iOS 26.5 simulator runtime and launched clean — no crash, no FFI error in the logs.
+
+**Honestly still open** (not claimed as done): 16 Swift concurrency / data-race warnings (mostly in `GooseAppModel+NotificationPipeline.swift`), uncommitted test fixtures blocking the full test suite, and no upstream PR yet. The source changes live on this branch's working tree pending review; this branch's commit carries only the write-up.
 
 ## Project Layout
 
